@@ -47,21 +47,35 @@ export default function Home() {
       const blob = await res.blob();
       const file = new File([blob], 'image.jpg', { type: 'image/jpeg' });
 
-      const formData = new FormData();
-      formData.append('image', file);
+      // Convert to base64
+      const arrayBuffer = await blob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-      const response = await fetch('/api/remove-bg', {
+      const formData = new FormData();
+      formData.append('image_file_b64', base64);
+      formData.append('size', 'auto');
+      formData.append('output_format', 'png');
+      formData.append('output_type', 'preview');
+
+      const response = await fetch('https://api.remove.bg/v1.0/removebg', {
         method: 'POST',
+        headers: {
+          'X-Api-Key': 'c1gXbCZMsnKnwas6zbFYG6ir',
+        },
         body: formData,
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        setResult(data.resultUrl);
-      } else {
-        setError(data.error || '处理失败');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Remove.bg error:', errorText);
+        setError('去背服务出错，请重试');
+        setLoading(false);
+        return;
       }
+
+      const resultBuffer = await response.arrayBuffer();
+      const resultBase64 = btoa(String.fromCharCode(...new Uint8Array(resultBuffer)));
+      setResult(`data:image/png;base64,${resultBase64}`);
     } catch {
       setError('网络错误，请重试');
     } finally {
